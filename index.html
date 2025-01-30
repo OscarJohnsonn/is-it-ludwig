@@ -2,19 +2,21 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Is it Ludwig? </title>
+  <title>Is it Ludwig?</title>
   <link rel="icon" type="image/png" href="favicon.png">
+  
   <!-- Open Graph Meta Tags -->
-<meta property="og:title" content="Is it Ludwig?">
-<meta property="og:description" content="Find out if an image matches Ludwig.">
-<meta property="og:image" content="https://oscarjohnsonn.github.io/is-it-ludwig/image.png">
-<meta property="og:url" content="https://oscarjohnsonn.github.io/is-it-ludwig/">
-<meta property="og:type" content="website">
-<!-- Twitter Card -->
-<meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Is it Ludwig?">
-<meta name="twitter:description" content="Find out if an image matches Ludwig.">
-<meta name="twitter:image" content="https://oscarjohnsonn.github.io/is-it-ludwig/preview.png">
+  <meta property="og:title" content="Is it Ludwig?">
+  <meta property="og:description" content="Find out if an image matches Ludwig.">
+  <meta property="og:image" content="https://oscarjohnsonn.github.io/is-it-ludwig/image.png">
+  <meta property="og:url" content="https://oscarjohnsonn.github.io/is-it-ludwig/">
+  <meta property="og:type" content="website">
+  
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Is it Ludwig?">
+  <meta name="twitter:description" content="Find out if an image matches Ludwig.">
+  <meta name="twitter:image" content="https://oscarjohnsonn.github.io/is-it-ludwig/preview.png">
 
   <!-- Google Analytics -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-4FWWKTJ2GZ"></script>
@@ -24,6 +26,12 @@
     gtag('js', new Date());
     gtag('config', 'G-4FWWKTJ2GZ');
   </script>
+
+  <!-- gifuct-js for GIF parsing -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gifuct-js/1.0.0/gifuct.min.js"></script>
+  <!-- gif.js for GIF encoding -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js"></script>
+
   <style>
     /* General Page Styling */
     body {
@@ -90,6 +98,36 @@
       background-color: #3a9a40;
     }
 
+    /* Toggle Button */
+    .toggle-btn {
+      background-color: #555555;
+      color: #ffffff;
+      border: none;
+      padding: 8px 16px;
+      font-size: 1rem;
+      border-radius: 6px;
+      cursor: pointer;
+      margin-top: 10px;
+      transition: background-color 0.3s;
+    }
+    .toggle-btn:hover {
+      background-color: #777777;
+    }
+
+    /* Details Section */
+    .details {
+      margin-top: 15px;
+      text-align: left;
+      display: none;
+      background-color: #33334d;
+      padding: 10px;
+      border-radius: 8px;
+    }
+    .details p {
+      margin: 5px 0;
+      font-size: 1rem;
+    }
+
     /* Result Text */
     .result-container {
       margin-top: 20px;
@@ -115,39 +153,63 @@
     /* Image Preview */
     .image-preview {
       margin-top: 20px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 20px;
     }
-    .image-preview img {
+    .image-preview img, .image-preview canvas {
       max-width: 300px;
       border-radius: 10px;
       box-shadow: 0 5px 15px rgba(255, 255, 255, 0.2);
     }
 
-    /* Share Image Options (text, resolution, toggle) */
+    /* Share Image Options (text, resolution, settings) */
     .share-controls {
       margin-top: 20px;
       display: none;
+      background-color: #28293d;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 5px 15px rgba(255, 255, 255, 0.1);
+      max-width: 600px;
+      margin-left: auto;
+      margin-right: auto;
+      text-align: left;
+    }
+    .share-controls .control-group {
+      margin-bottom: 15px;
     }
     .share-controls label {
-      margin-right: 5px;
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
     }
-    .share-controls input[type="text"] {
-      font-size: 1rem;
+    .share-controls input[type="text"], 
+    .share-controls input[type="number"],
+    .share-controls select,
+    .share-controls input[type="color"] {
+      width: 100%;
       padding: 8px;
       border-radius: 4px;
       border: 1px solid #ccc;
-      width: 70%;
-      max-width: 400px;
-    }
-    .share-controls select {
       font-size: 1rem;
-      margin-left: 10px;
-      padding: 6px;
-      border-radius: 4px;
     }
     .share-controls input[type="checkbox"] {
       transform: scale(1.2);
-      margin-left: 10px;
+      margin-right: 10px;
       vertical-align: middle;
+    }
+
+    /* New Controls for Text Settings */
+    .share-controls .font-family-group,
+    .share-controls .italic-group,
+    .share-controls .stroke-color-group,
+    .share-controls .stroke-width-group,
+    .share-controls .text-spacing-group,
+    .share-controls .text-padding-group {
+      margin-bottom: 15px;
     }
 
     /* Final Shared Image Output */
@@ -161,6 +223,22 @@
       height: auto;
       border: 2px solid #ffffff;
       margin-top: 10px;
+      border-radius: 10px;
+      box-shadow: 0 5px 15px rgba(255, 255, 255, 0.2);
+    }
+
+    /* Responsive Design */
+    @media (max-width: 768px) {
+      h1 {
+        font-size: 2.5rem;
+      }
+      .btn, .toggle-btn {
+        font-size: 1rem;
+        padding: 10px 16px;
+      }
+      .share-controls {
+        padding: 15px;
+      }
     }
   </style>
 </head>
@@ -168,7 +246,6 @@
 <body>
 
   <h1>Is it Ludwig? 🤔</h1>
-
 
   <!-- Upload & Paste -->
   <div class="upload-box">
@@ -183,7 +260,14 @@
   <button class="btn" id="share-btn" style="display: none;">Share Image</button>
 
   <!-- Image preview area -->
-  <div class="image-preview" id="image-preview"></div>
+  <div class="image-preview" id="image-preview">
+    <!-- Original Image -->
+    <img id="original-image" alt="Uploaded Image" style="display: none;">
+    <!-- Animated GIF Preview -->
+    <img id="animated-gif-preview" alt="Animated GIF Preview" style="display: none;">
+    <!-- Share Image Preview -->
+    <canvas id="share-preview" style="display: none;"></canvas>
+  </div>
   <div class="result-container" id="result"></div>
 
   <!-- Hidden canvas for analysis -->
@@ -192,13 +276,79 @@
   <!-- Share Image Options -->
   <div class="share-controls" id="share-controls">
     <!-- Editable text -->
-    <div>
+    <div class="control-group">
       <label for="share-text">Edit Text:</label>
-      <input type="text" id="share-text" />
+      <input type="text" id="share-text" placeholder="Enter your text here">
+    </div>
+
+    <!-- Font Size -->
+    <div class="control-group">
+      <label for="font-size">Font Size (px):</label>
+      <input type="number" id="font-size" value="48" min="10" max="200">
+    </div>
+
+    <!-- Font Family -->
+    <div class="control-group font-family-group">
+      <label for="font-family">Font Family:</label>
+      <select id="font-family">
+        <option value="Impact, sans-serif">Impact</option>
+        <option value="'Arial Black', Gadget, sans-serif">Arial Black</option>
+        <option value="'Comic Sans MS', cursive, sans-serif">Comic Sans</option>
+        <option value="'Courier New', Courier, monospace">Courier New</option>
+        <option value="'Georgia', serif">Georgia</option>
+        <option value="'Times New Roman', Times, serif">Times New Roman</option>
+        <option value="'Verdana', sans-serif">Verdana</option>
+      </select>
+    </div>
+
+    <!-- Italics Toggle -->
+    <div class="control-group italic-group">
+      <input type="checkbox" id="italic-toggle">
+      <label for="italic-toggle">Italic</label>
+    </div>
+
+    <!-- Font Color -->
+    <div class="control-group">
+      <label for="font-color">Font Color:</label>
+      <input type="color" id="font-color" value="#FFFFFF">
+    </div>
+
+    <!-- Stroke Color -->
+    <div class="control-group stroke-color-group">
+      <label for="stroke-color">Stroke Color:</label>
+      <input type="color" id="stroke-color" value="#000000">
+    </div>
+
+    <!-- Stroke Width -->
+    <div class="control-group stroke-width-group">
+      <label for="stroke-width">Stroke Width (px):</label>
+      <input type="number" id="stroke-width" value="4" min="1" max="20">
+    </div>
+
+    <!-- Text Spacing -->
+    <div class="control-group text-spacing-group">
+      <label for="text-spacing">Letter Spacing (px):</label>
+      <input type="number" id="text-spacing" value="0" min="0" max="50">
+    </div>
+
+    <!-- Text Padding -->
+    <div class="control-group text-padding-group">
+      <label for="text-padding">Text Padding (px):</label>
+      <input type="number" id="text-padding" value="20" min="0" max="100">
+    </div>
+
+    <!-- Text Position -->
+    <div class="control-group">
+      <label for="text-position">Text Position:</label>
+      <select id="text-position">
+        <option value="top">Top</option>
+        <option value="center" selected>Center</option>
+        <option value="bottom">Bottom</option>
+      </select>
     </div>
 
     <!-- Resolution -->
-    <div style="margin-top: 10px;">
+    <div class="control-group">
       <label for="resolution-select">Resolution:</label>
       <select id="resolution-select">
         <option value="1">Original</option>
@@ -208,14 +358,13 @@
       </select>
     </div>
 
-    <!-- Toggle ratio -->
-    <div style="margin-top: 10px;">
+    <!-- Toggle Ludwig Percentage -->
+    <div class="control-group">
+      <input type="checkbox" id="include-ratio" checked>
       <label for="include-ratio">Include Ludwig %?</label>
-      <input type="checkbox" id="include-ratio" checked />
     </div>
 
     <br>
-    <button class="btn" id="generate-share-btn">Generate Image</button>
     <button class="btn" id="download-share-btn" style="display: none;">Download Image</button>
   </div>
 
@@ -223,6 +372,7 @@
   <div id="share-output-container">
     <h2>Your Shared Image:</h2>
     <img id="share-output" alt="Shared Image" />
+    <img id="share-output-gif" alt="Shared Animated GIF" />
   </div>
 
   <script>
@@ -232,24 +382,41 @@
     const shareBtn             = document.getElementById('share-btn');
     const resultElement        = document.getElementById('result');
     const imagePreview         = document.getElementById('image-preview');
+    const originalImage        = document.getElementById('original-image');
+    const animatedGifPreview   = document.getElementById('animated-gif-preview');
+    const sharePreviewCanvas   = document.getElementById('share-preview');
+    const sharePreviewCtx      = sharePreviewCanvas.getContext('2d');
+
     const canvas               = document.getElementById('image-canvas');
     const ctx                  = canvas.getContext('2d');
 
     const shareControls        = document.getElementById('share-controls');
     const shareTextInput       = document.getElementById('share-text');
+    const fontSizeInput        = document.getElementById('font-size');
+    const fontColorInput       = document.getElementById('font-color');
+    const fontFamilySelect     = document.getElementById('font-family');
+    const italicToggle         = document.getElementById('italic-toggle');
+    const strokeColorInput     = document.getElementById('stroke-color');
+    const strokeWidthInput     = document.getElementById('stroke-width');
+    const textSpacingInput     = document.getElementById('text-spacing');
+    const textPaddingInput     = document.getElementById('text-padding');
+    const textPositionSelect   = document.getElementById('text-position');
     const resolutionSelect     = document.getElementById('resolution-select');
     const includeRatioCheckbox = document.getElementById('include-ratio');
-    const generateShareBtn     = document.getElementById('generate-share-btn');
     const downloadShareBtn     = document.getElementById('download-share-btn');
 
     const shareOutputContainer = document.getElementById('share-output-container');
     const shareOutput          = document.getElementById('share-output');
+    const shareOutputGif       = document.getElementById('share-output-gif');
 
     // State variables
     let selectedImage     = null;
     let uploadedImageUrl  = null;   // Stores the uploaded image data URL
+    let isAnimatedGif     = false;  // Flag to check if the uploaded image is an animated GIF
     let detectionText     = null;   // "THIS IS LUDWIG" or "THIS IS NOT LUDWIG"
     let detectionRatio    = 0;      // e.g., 0.12 for 12%
+    let gifFrames         = [];     // Stores frames of the GIF
+    let gifDelay          = 500;    // Default delay between frames
 
     // Handle file selection
     imageInput.addEventListener('change', () => {
@@ -272,11 +439,25 @@
     });
 
     // Function to display the uploaded image
-    function displayImage(imageFile) {
+    async function displayImage(imageFile) {
       const reader = new FileReader();
-      reader.onload = (event) => {
+      reader.onload = async (event) => {
         uploadedImageUrl = event.target.result;
-        imagePreview.innerHTML = `<img src="${uploadedImageUrl}" alt="Uploaded Image">`;
+        const isGif = imageFile.type === 'image/gif';
+        isAnimatedGif = false;
+        if (isGif) {
+          isAnimatedGif = await isAnimated(uploadedImageUrl);
+        }
+        if (isAnimatedGif) {
+          originalImage.style.display = "none";
+          animatedGifPreview.style.display = "block";
+          animatedGifPreview.src = uploadedImageUrl;
+        } else {
+          originalImage.src = uploadedImageUrl;
+          originalImage.style.display = "block";
+          animatedGifPreview.style.display = "none";
+        }
+        sharePreviewCanvas.style.display = "none";
         resultElement.textContent = "Image loaded. Click 'Analyze' when ready.";
         // Reset previous share outputs
         shareControls.style.display = "none";
@@ -285,6 +466,26 @@
         shareBtn.style.display = "none";
       };
       reader.readAsDataURL(imageFile);
+    }
+
+    // Function to check if a GIF is animated
+    async function isAnimated(url) {
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+          // More accurate: parse the GIF and check frame count
+          fetch(url)
+            .then(response => response.arrayBuffer())
+            .then(buffer => {
+              const gif = gifuct.parseGIF(buffer);
+              const frames = gifuct.decompressFrames(gif, true);
+              resolve(frames.length > 1);
+            })
+            .catch(() => resolve(false));
+        };
+        img.onerror = () => resolve(false);
+        img.src = url;
+      });
     }
 
     // Function to convert RGB to HSV
@@ -314,6 +515,7 @@
     function shouldIgnorePixel(r, g, b, a) {
       if (a === 0) return true;                       // Transparent
       if (r === 255 && g === 255 && b === 255) return true; // White
+      if (r === g && g === b) return true;             // Grey
       return false;
     }
 
@@ -333,7 +535,7 @@
     }
 
     // Handle Analyze button click
-    analyzeBtn.addEventListener('click', () => {
+    analyzeBtn.addEventListener('click', async () => {
       if (!selectedImage) {
         resultElement.textContent = "Please select or paste an image first.";
         return;
@@ -343,6 +545,15 @@
       shareOutputContainer.style.display = "none";
       downloadShareBtn.style.display = "none";
 
+      if (isAnimatedGif) {
+        await analyzeGif();
+      } else {
+        analyzeStaticImage(uploadedImageUrl);
+      }
+    });
+
+    // Function to analyze static images
+    function analyzeStaticImage(imageUrl) {
       const reader = new FileReader();
       reader.onload = (e) => {
         const img = new Image();
@@ -386,7 +597,7 @@
 
           let finalText;
           if (ratio < threshold) {
-            finalText = `❌ This is NOT Ludwig ❌ (Only ${(ratio*100).toFixed(2)}% red/orange/pink)`;
+            finalText = `❌ This is NOT Ludwig ❌`;
             detectionText = "THIS IS NOT LUDWIG";
           } else {
             const totalGreenBlue = greenCount + blueCount;
@@ -395,18 +606,57 @@
               finalText = `❌ This is NOT Ludwig ❌ (Green+Blue > Red+Orange)`;
               detectionText = "THIS IS NOT LUDWIG";
             } else {
-              finalText = `🔥 This IS Ludwig 🔥 (${(ratio*100).toFixed(2)}% red/orange/pink)`;
+              finalText = `🔥 This IS Ludwig 🔥`;
               detectionText = "THIS IS LUDWIG";
             }
           }
 
           detectionRatio = ratio;
 
-          // Show result
+          // Calculate percentages for detailed analysis
+          const redPercentage    = ((redCount / validPixels) * 100).toFixed(2);
+          const orangePercentage = ((orangeCount / validPixels) * 100).toFixed(2);
+          const pinkPercentage   = ((pinkCount / validPixels) * 100).toFixed(2);
+          const greenPercentage  = ((greenCount / validPixels) * 100).toFixed(2);
+          const bluePercentage   = ((blueCount / validPixels) * 100).toFixed(2);
+
+          // Show result with toggle for details
           const isLudwig = detectionText.includes("IS LUDWIG");
           resultElement.innerHTML = isLudwig
-            ? `<p class="ludwig">${finalText}</p>`
-            : `<p class="not-ludwig">${finalText}</p>`;
+            ? `<p class="ludwig">${finalText}</p>
+               <button class="toggle-btn">Show Details</button>
+               <div class="details">
+                 <p><strong>Detailed Analysis:</strong></p>
+                 <p>Red: ${redPercentage}%</p>
+                 <p>Orange: ${orangePercentage}%</p>
+                 <p>Pink: ${pinkPercentage}%</p>
+                 <p>Green: ${greenPercentage}%</p>
+                 <p>Blue: ${bluePercentage}%</p>
+               </div>`
+            : `<p class="not-ludwig">${finalText}</p>
+               <button class="toggle-btn">Show Details</button>
+               <div class="details">
+                 <p><strong>Detailed Analysis:</strong></p>
+                 <p>Red: ${redPercentage}%</p>
+                 <p>Orange: ${orangePercentage}%</p>
+                 <p>Pink: ${pinkPercentage}%</p>
+                 <p>Green: ${greenPercentage}%</p>
+                 <p>Blue: ${bluePercentage}%</p>
+               </div>`;
+
+          // Attach event listener to the newly added toggle button
+          const toggleBtn = resultElement.querySelector('.toggle-btn');
+          const detailsDiv = resultElement.querySelector('.details');
+
+          toggleBtn.addEventListener('click', () => {
+            if (detailsDiv.style.display === "none" || detailsDiv.style.display === "") {
+              detailsDiv.style.display = "block";
+              toggleBtn.textContent = "Hide Details";
+            } else {
+              detailsDiv.style.display = "none";
+              toggleBtn.textContent = "Show Details";
+            }
+          });
 
           // Show Share Image button
           shareBtn.style.display = "inline-block";
@@ -414,7 +664,122 @@
         img.src = e.target.result;  // local data URL
       };
       reader.readAsDataURL(selectedImage);
-    });
+    }
+
+    // Function to analyze animated GIFs
+    async function analyzeGif() {
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const gif = gifuct.parseGIF(e.target.result);
+        const frames = gifuct.decompressFrames(gif, true);
+        gifFrames = frames;
+        // For simplicity, analyze the first frame
+        const firstFrame = frames[0];
+        canvas.width = firstFrame.dims.width;
+        canvas.height = firstFrame.dims.height;
+        const imageData = new ImageData(firstFrame.patch, firstFrame.dims.width, firstFrame.dims.height);
+        ctx.putImageData(imageData, 0, 0);
+
+        const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        let validPixels   = 0;
+        let redCount      = 0; 
+        let orangeCount   = 0; 
+        let pinkCount     = 0;
+        let greenCount    = 0; 
+        let blueCount     = 0;
+
+        for (let i = 0; i < data.length; i += 4) {
+          const r = data[i];
+          const g = data[i + 1];
+          const b = data[i + 2];
+          const a = data[i + 3];
+
+          if (!shouldIgnorePixel(r, g, b, a)) {
+            validPixels++;
+            const [h] = rgbToHsv(r, g, b);
+            const bucket = getColorBucket(h);
+            switch (bucket) {
+              case 'red':    redCount++;    break;
+              case 'orange': orangeCount++; break;
+              case 'pink':   pinkCount++;   break;
+              case 'green':  greenCount++;  break;
+              case 'blue':   blueCount++;   break;
+            }
+          }
+        }
+
+        const ludwigColorCount = redCount + orangeCount + pinkCount;
+        const ratio = validPixels ? (ludwigColorCount / validPixels) : 0;
+        const threshold = 0.05; // 5%
+
+        let finalText;
+        if (ratio < threshold) {
+          finalText = `❌ This is NOT Ludwig ❌`;
+          detectionText = "THIS IS NOT LUDWIG";
+        } else {
+          const totalGreenBlue = greenCount + blueCount;
+          const totalRedOrange = redCount + orangeCount;
+          if (totalGreenBlue > totalRedOrange) {
+            finalText = `❌ This is NOT Ludwig ❌ (Green+Blue > Red+Orange)`;
+            detectionText = "THIS IS NOT LUDWIG";
+          } else {
+            finalText = `🔥 This IS Ludwig 🔥`;
+            detectionText = "THIS IS LUDWIG";
+          }
+        }
+
+        detectionRatio = ratio;
+
+        // Calculate percentages for detailed analysis
+        const redPercentage    = ((redCount / validPixels) * 100).toFixed(2);
+        const orangePercentage = ((orangeCount / validPixels) * 100).toFixed(2);
+        const pinkPercentage   = ((pinkCount / validPixels) * 100).toFixed(2);
+        const greenPercentage  = ((greenCount / validPixels) * 100).toFixed(2);
+        const bluePercentage   = ((blueCount / validPixels) * 100).toFixed(2);
+
+        // Show result with toggle for details
+        const isLudwig = detectionText.includes("IS LUDWIG");
+        resultElement.innerHTML = isLudwig
+          ? `<p class="ludwig">${finalText}</p>
+             <button class="toggle-btn">Show Details</button>
+             <div class="details">
+               <p><strong>Detailed Analysis:</strong></p>
+               <p>Red: ${redPercentage}%</p>
+               <p>Orange: ${orangePercentage}%</p>
+               <p>Pink: ${pinkPercentage}%</p>
+               <p>Green: ${greenPercentage}%</p>
+               <p>Blue: ${bluePercentage}%</p>
+             </div>`
+          : `<p class="not-ludwig">${finalText}</p>
+             <button class="toggle-btn">Show Details</button>
+             <div class="details">
+               <p><strong>Detailed Analysis:</strong></p>
+               <p>Red: ${redPercentage}%</p>
+               <p>Orange: ${orangePercentage}%</p>
+               <p>Pink: ${pinkPercentage}%</p>
+               <p>Green: ${greenPercentage}%</p>
+               <p>Blue: ${bluePercentage}%</p>
+             </div>`;
+
+        // Attach event listener to the newly added toggle button
+        const toggleBtn = resultElement.querySelector('.toggle-btn');
+        const detailsDiv = resultElement.querySelector('.details');
+
+        toggleBtn.addEventListener('click', () => {
+          if (detailsDiv.style.display === "none" || detailsDiv.style.display === "") {
+            detailsDiv.style.display = "block";
+            toggleBtn.textContent = "Hide Details";
+          } else {
+            detailsDiv.style.display = "none";
+            toggleBtn.textContent = "Show Details";
+          }
+        });
+
+        // Show Share Image button
+        shareBtn.style.display = "inline-block";
+      };
+      reader.readAsArrayBuffer(selectedImage);
+    }
 
     // Handle Share Image button click
     shareBtn.addEventListener('click', () => {
@@ -422,111 +787,248 @@
       shareTextInput.value = detectionText || "";
       shareControls.style.display = "block";
 
-      // Hide the Share Image button to prevent multiple clicks
-      shareBtn.style.display = "none";
+      // Initialize share preview
+      updateSharePreview();
+
+      // Hide the original image or animated GIF in preview
+      originalImage.style.display = "none";
+      animatedGifPreview.style.display = "none";
+
+      // Show the Download Image button initially hidden
+      downloadShareBtn.style.display = "inline-block";
     });
 
-    // Handle Generate Image button click
-    generateShareBtn.addEventListener('click', () => {
-      if (!uploadedImageUrl) {
-        alert("Please upload and analyze an image first.");
+    // Function to create and update the share image preview
+    async function updateSharePreview() {
+      if (!uploadedImageUrl) return;
+
+      if (isAnimatedGif) {
+        await processAnimatedGif();
+      } else {
+        processStaticImage();
+      }
+    }
+
+    // Function to process static images for preview
+    function processStaticImage() {
+      const img = new Image();
+      img.crossOrigin = "anonymous"; // To avoid CORS issues
+      img.onload = () => {
+        // Get selected resolution
+        const scale = parseFloat(resolutionSelect.value) || 1;
+        const finalWidth  = Math.round(img.width  * scale);
+        const finalHeight = Math.round(img.height * scale);
+        sharePreviewCanvas.width  = finalWidth;
+        sharePreviewCanvas.height = finalHeight;
+
+        // Draw scaled image
+        sharePreviewCtx.clearRect(0, 0, finalWidth, finalHeight);
+        sharePreviewCtx.drawImage(img, 0, 0, finalWidth, finalHeight);
+
+        // Apply text overlay
+        applyTextOverlay(sharePreviewCtx, finalWidth, finalHeight, scale);
+
+        // Show the preview
+        sharePreviewCanvas.style.display = "block";
+        animatedGifPreview.style.display = "none";
+        shareOutput.style.display = "none";
+        shareOutputGif.style.display = "none";
+      };
+      img.src = uploadedImageUrl;
+    }
+
+    // Function to process animated GIFs for preview
+    async function processAnimatedGif() {
+      if (gifFrames.length === 0) {
+        alert("GIF frames not loaded.");
         return;
       }
 
-      // Collect user text (or fallback)
-      let userText = shareTextInput.value.trim() || detectionText || "YOUR IMAGE HERE";
-      // Collect scale
+      const gif = new GIF({
+        workers: 2,
+        quality: 10
+      });
+
+      // Get selected resolution
       const scale = parseFloat(resolutionSelect.value) || 1;
-      // Whether to include ratio
-      const includeRatio = includeRatioCheckbox.checked;
 
-      createShareImage(uploadedImageUrl, userText, scale, includeRatio ? detectionRatio : null)
-        .then((finalDataUrl) => {
-          // Replace the uploaded image with the generated share image
-          imagePreview.innerHTML = `<img src="${finalDataUrl}" alt="Shared Image">`;
+      for (let frame of gifFrames) {
+        const frameCanvas = document.createElement('canvas');
+        frameCanvas.width = frame.dims.width;
+        frameCanvas.height = frame.dims.height;
+        const frameCtx = frameCanvas.getContext('2d');
+        const frameImageData = new ImageData(frame.patch, frame.dims.width, frame.dims.height);
+        frameCtx.putImageData(frameImageData, 0, 0);
 
-          // Show the final shared image container (optional)
-          shareOutput.src = finalDataUrl;
-          shareOutputContainer.style.display = "block";
+        // Scale the frame
+        const scaledWidth = Math.round(frame.dims.width * scale);
+        const scaledHeight = Math.round(frame.dims.height * scale);
+        const scaledCanvas = document.createElement('canvas');
+        scaledCanvas.width = scaledWidth;
+        scaledCanvas.height = scaledHeight;
+        const scaledCtx = scaledCanvas.getContext('2d');
+        scaledCtx.drawImage(frameCanvas, 0, 0, scaledWidth, scaledHeight);
 
-          // Show Download Image button
-          downloadShareBtn.style.display = "inline-block";
+        // Apply text overlay
+        applyTextOverlay(scaledCtx, scaledWidth, scaledHeight, scale);
 
-          // Hide share controls to prevent multiple generations
-          shareControls.style.display = "none";
-        })
-        .catch((err) => {
-          console.error("Error generating share image:", err);
-        });
-    });
+        // Add frame to GIF
+        gif.addFrame(scaledCtx, {copy: true, delay: frame.delay || gifDelay});
+      }
 
-    // Function to create the share image
-    function createShareImage(imgSrc, mainText, scale, ratioOrNull) {
-      return new Promise((resolve, reject) => {
-        const offscreenCanvas = document.createElement('canvas');
-        const offscreenCtx = offscreenCanvas.getContext('2d');
-        const baseImage = new Image();
+      gif.on('finished', (blob) => {
+        const gifUrl = URL.createObjectURL(blob);
+        shareOutputGif.src = gifUrl;
+        sharePreviewCanvas.style.display = "none";
+        animatedGifPreview.style.display = "none";
+        shareOutputGif.style.display = "block";
+        shareOutput.style.display = "none";
+      });
 
-        baseImage.onload = () => {
-          // Scale final dimensions
-          const finalWidth  = Math.round(baseImage.width  * scale);
-          const finalHeight = Math.round(baseImage.height * scale);
-          offscreenCanvas.width  = finalWidth;
-          offscreenCanvas.height = finalHeight;
+      gif.render();
+    }
 
-          // Draw scaled image
-          offscreenCtx.drawImage(baseImage, 0, 0, finalWidth, finalHeight);
+    // Function to apply text overlay on canvas
+    function applyTextOverlay(ctx, finalWidth, finalHeight, scale) {
+      // Font styling
+      const fontSize = parseInt(fontSizeInput.value) || 48;
+      const scaledFontSize = Math.floor(fontSize * scale);
+      let fontStyle = '';
+      if (italicToggle.checked) {
+        fontStyle = 'italic ';
+      }
+      const fontFamily = fontFamilySelect.value || 'Impact, sans-serif';
+      const letterSpacing = (parseInt(textSpacingInput.value) || 0) * scale;
+      const textPadding = parseInt(textPaddingInput.value) || 20;
+      ctx.font        = `${fontStyle}bold ${scaledFontSize}px ${fontFamily}`;
+      ctx.fillStyle   = fontColorInput.value || '#FFFFFF';
+      ctx.strokeStyle = strokeColorInput.value || '#000000';
+      const strokeWidth = parseInt(strokeWidthInput.value) || 4;
+      ctx.lineWidth   = Math.floor(strokeWidth * scale);
+      ctx.textAlign   = 'left'; // Changed to 'left' since we're handling positioning manually
+      ctx.textBaseline = 'middle';
 
-          // Font styling
-          const baseFontSize = 48;
-          const fontSize     = Math.floor(baseFontSize * scale);
+      // Get main and ratio texts
+      const mainText = shareTextInput.value.trim() || detectionText || "YOUR IMAGE HERE";
+      const ratioText = includeRatioCheckbox.checked && detectionRatio > 0 ? `(${(detectionRatio * 100).toFixed(2)}% Ludwig)` : "";
 
-          offscreenCtx.font        = `bold ${fontSize}px Impact, sans-serif`;
-          offscreenCtx.fillStyle   = 'white';
-          offscreenCtx.strokeStyle = 'black';
-          offscreenCtx.lineWidth   = 4 * scale;
-          offscreenCtx.textAlign   = 'center';
+      // Determine text position
+      let y;
+      switch(textPositionSelect.value) {
+        case 'top':
+          y = textPadding + scaledFontSize / 2;
+          break;
+        case 'center':
+          y = finalHeight / 2;
+          break;
+        case 'bottom':
+          y = finalHeight - textPadding - scaledFontSize / 2;
+          break;
+        default:
+          y = finalHeight / 2;
+      }
 
-          const xCenter = finalWidth / 2;
-          let y = Math.floor(60 * scale);
+      // Draw Main Text with Letter Spacing
+      drawTextWithLetterSpacing(mainText, finalWidth / 2, y, letterSpacing, ctx);
 
-          // Main text
-          offscreenCtx.strokeText(mainText, xCenter, y);
-          offscreenCtx.fillText(mainText, xCenter, y);
+      // If include ratio is checked and ratio exists
+      if (ratioText) {
+        // Calculate ratio font size as a proportion of the main font size (e.g., 50%)
+        const ratioFontSize = Math.floor((fontSize * 0.5) * scale);
+        let ratioFontStyle = '';
+        if (italicToggle.checked) {
+          ratioFontStyle = 'italic ';
+        }
+        ctx.font = `${ratioFontStyle}bold ${ratioFontSize}px ${fontFamily}`;
+        const ratioLineSpacing = 10 * scale; // 10px spacing scaled
 
-          // If ratio is provided, add it
-          if (ratioOrNull !== null && ratioOrNull > 0) {
-            y += Math.floor(60 * scale);
-            const ratioStr = `(${(ratioOrNull * 100).toFixed(2)}% Ludwig)`;
-            offscreenCtx.strokeText(ratioStr, xCenter, y);
-            offscreenCtx.fillText(ratioStr, xCenter, y);
-          }
+        // Calculate scaled letter spacing for ratio text
+        const ratioLetterSpacing = letterSpacing;
 
-          // Convert to data URL
-          try {
-            const dataURL = offscreenCanvas.toDataURL('image/png');
-            resolve(dataURL);
-          } catch (e) {
-            reject(e);
-          }
-        };
-        baseImage.onerror = reject;
-        baseImage.src     = imgSrc; // local dataURL
+        // Draw Ratio Text with Letter Spacing
+        const ratioY = y + scaledFontSize / 2 + ratioLineSpacing + (ratioFontSize / 2);
+        drawTextWithLetterSpacing(ratioText, finalWidth / 2, ratioY, ratioLetterSpacing, ctx);
+      }
+    }
+
+    /**
+     * Function to draw text with letter spacing
+     * @param {string} text - The text to draw
+     * @param {number} x - The x-coordinate for the text
+     * @param {number} y - The y-coordinate for the text
+     * @param {number} letterSpacing - The spacing between letters in pixels
+     * @param {CanvasRenderingContext2D} ctx - The canvas rendering context
+     */
+    function drawTextWithLetterSpacing(text, x, y, letterSpacing, ctx) {
+      const letters = text.split('');
+      let totalWidth = 0;
+      
+      // Calculate total width of the text with letter spacing
+      letters.forEach(letter => {
+        totalWidth += ctx.measureText(letter).width + letterSpacing;
+      });
+      
+      // Adjust total width by removing the last letter spacing
+      totalWidth -= letterSpacing;
+      
+      // Starting X position to center the text
+      let currentX = x - totalWidth / 2;
+      
+      letters.forEach(letter => {
+        ctx.strokeText(letter, currentX, y);
+        ctx.fillText(letter, currentX, y);
+        currentX += ctx.measureText(letter).width + letterSpacing;
       });
     }
 
+    // Event listeners for share controls to update preview live
+    shareTextInput.addEventListener('input', updateSharePreview);
+    fontSizeInput.addEventListener('input', updateSharePreview);
+    fontColorInput.addEventListener('input', updateSharePreview);
+    fontFamilySelect.addEventListener('change', updateSharePreview);
+    italicToggle.addEventListener('change', updateSharePreview);
+    strokeColorInput.addEventListener('input', updateSharePreview);
+    strokeWidthInput.addEventListener('input', updateSharePreview);
+    textSpacingInput.addEventListener('input', updateSharePreview);
+    textPaddingInput.addEventListener('input', updateSharePreview);
+    textPositionSelect.addEventListener('change', updateSharePreview);
+    resolutionSelect.addEventListener('change', updateSharePreview);
+    includeRatioCheckbox.addEventListener('change', updateSharePreview);
+
     // Handle Download Image button click
     downloadShareBtn.addEventListener('click', () => {
-      if (!shareOutput.src) {
-        alert("Please generate the image first.");
-        return;
+      if (isAnimatedGif) {
+        if (shareOutputGif.src) {
+          const link = document.createElement('a');
+          link.href = shareOutputGif.src;
+          link.download = 'ludwig_image.gif';
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+        } else {
+          alert("Please generate the GIF first.");
+        }
+      } else {
+        if (sharePreviewCanvas.toDataURL()) {
+          const link = document.createElement('a');
+          link.href = sharePreviewCanvas.toDataURL('image/png');
+          link.download = 'ludwig_image.png';
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+        } else {
+          alert("Please generate the image first.");
+        }
       }
-      const link = document.createElement('a');
-      link.href = shareOutput.src;
-      link.download = 'ludwig_image.png';
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
+    });
+
+    // Activate Analyze button when Enter key is pressed
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        // Prevent form submission or other default actions
+        event.preventDefault();
+        analyzeBtn.click();
+      }
     });
   </script>
 
