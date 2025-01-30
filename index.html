@@ -3,15 +3,15 @@
 <head>
   <meta charset="utf-8" />
   <title>Is it Ludwig?</title>
-  <!-- Google tag (gtag.js) -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-4FWWKTJ2GZ"></script>
-    <script>
+  <!-- Google Analytics -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-4FWWKTJ2GZ"></script>
+  <script>
     window.dataLayer = window.dataLayer || [];
     function gtag(){dataLayer.push(arguments);}
     gtag('js', new Date());
-
     gtag('config', 'G-4FWWKTJ2GZ');
-    </script>
+  </script>
+
   <style>
     /* General Page Styling */
     body {
@@ -102,6 +102,17 @@
       0% { transform: scale(0.8); opacity: 0; }
       100% { transform: scale(1); opacity: 1; }
     }
+
+    /* Image Display */
+    .image-preview {
+      margin-top: 20px;
+    }
+
+    .image-preview img {
+      max-width: 300px;
+      border-radius: 10px;
+      box-shadow: 0 5px 15px rgba(255, 255, 255, 0.2);
+    }
   </style>
 </head>
 <body>
@@ -118,6 +129,9 @@
   <br>
   <button id="analyze-btn">Analyze</button>
 
+  <!-- Image preview area -->
+  <div class="image-preview" id="image-preview"></div>
+
   <div class="result-container" id="result"></div>
 
   <canvas id="image-canvas" style="display: none;"></canvas>
@@ -126,6 +140,7 @@
     const imageInput = document.getElementById('image-input');
     const analyzeBtn = document.getElementById('analyze-btn');
     const resultElement = document.getElementById('result');
+    const imagePreview = document.getElementById('image-preview');
     const canvas = document.getElementById('image-canvas');
     const ctx = canvas.getContext('2d');
 
@@ -135,7 +150,7 @@
     imageInput.addEventListener('change', function() {
       if (this.files && this.files[0]) {
         selectedImage = this.files[0];
-        resultElement.textContent = "Image selected. Click Analyze when ready.";
+        displayImage(selectedImage);
       }
     });
 
@@ -146,36 +161,35 @@
         const file = clipboardFiles[0];
         if (file.type.indexOf('image') === 0) {
           selectedImage = file;
-          resultElement.textContent = "Image pasted. Click Analyze when ready.";
+          displayImage(selectedImage);
         }
       }
     });
 
-    // Convert RGB to HSV
-    function rgbToHsv(r, g, b) {
-      r /= 255;
-      g /= 255;
-      b /= 255;
-      const cmax = Math.max(r, g, b);
-      const cmin = Math.min(r, g, b);
-      const delta = cmax - cmin;
-      let h = 0, s = 0, v = cmax;
+    function displayImage(imageFile) {
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        imagePreview.innerHTML = `<img src="${event.target.result}" alt="Uploaded Image">`;
+      };
+      reader.readAsDataURL(imageFile);
+      resultElement.textContent = "Image loaded. Click Analyze when ready.";
+    }
 
-      if (delta === 0) {
-        h = 0;
-      } else if (cmax === r) {
-        h = 60 * (((g - b) / delta) % 6);
-      } else if (cmax === g) {
-        h = 60 * ((b - r) / delta + 2);
-      } else {
-        h = 60 * ((r - g) / delta + 4);
+    function rgbToHsv(r, g, b) {
+      r /= 255; g /= 255; b /= 255;
+      const cmax = Math.max(r, g, b), cmin = Math.min(r, g, b), delta = cmax - cmin;
+      let h = 0, s = cmax ? delta / cmax : 0, v = cmax;
+
+      if (delta) {
+        if (cmax === r) h = ((g - b) / delta) % 6;
+        else if (cmax === g) h = (b - r) / delta + 2;
+        else h = (r - g) / delta + 4;
+        h = Math.round(h * 60);
+        if (h < 0) h += 360;
       }
-      if (h < 0) h += 360;
-      s = (cmax !== 0) ? delta / cmax : 0;
       return [h, s, v];
     }
 
-    // Ignore black, white, transparent pixels
     function shouldIgnorePixel(r, g, b, a) {
       return a === 0 || (r === 0 && g === 0 && b === 0) || (r === 255 && g === 255 && b === 255);
     }
@@ -197,37 +211,22 @@
           const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
           const data = imageData.data;
 
-          let validPixels = 0;
-          let redPixels = 0;
-          let orangePixels = 0;
-          let pinkPixels = 0;
+          let validPixels = 0, redPixels = 0, orangePixels = 0, pinkPixels = 0;
 
           for (let i = 0; i < data.length; i += 4) {
-            const r = data[i];
-            const g = data[i + 1];
-            const b = data[i + 2];
-            const a = data[i + 3];
+            const r = data[i], g = data[i + 1], b = data[i + 2], a = data[i + 3];
 
             if (shouldIgnorePixel(r, g, b, a)) continue;
-
             validPixels++;
 
             const [h, s, v] = rgbToHsv(r, g, b);
 
-            if (((h >= 0 && h <= 20) || (h >= 340 && h <= 360)) && s >= 0.4 && v >= 0.3) redPixels++;
-            else if ((h >= 21 && h <= 40) && s >= 0.4 && v >= 0.3) orangePixels++;
-            else if ((h >= 300 && h <= 340) && s >= 0.3 && v >= 0.5) pinkPixels++;
+            if ((h >= 0 && h <= 20) || (h >= 340 && h <= 360)) redPixels++;
+            else if (h >= 21 && h <= 40) orangePixels++;
+            else if (h >= 300 && h <= 340) pinkPixels++;
           }
 
-          const redPercent = (redPixels / validPixels) * 100;
-          const orangePercent = (orangePixels / validPixels) * 100;
-          const pinkPercent = (pinkPixels / validPixels) * 100;
-
-          let ludwigDetected = redPercent >= 20 || orangePercent >= 20 || pinkPercent >= 20 ||
-            (redPercent >= 12 && (orangePercent >= 8 || pinkPercent >= 8)) ||
-            (orangePercent >= 12 && (redPercent >= 8 || pinkPercent >= 8)) ||
-            (pinkPercent >= 12 && (redPercent >= 8 || orangePercent >= 8));
-
+          let ludwigDetected = redPixels >= 20 || orangePixels >= 20 || pinkPixels >= 20;
           resultElement.innerHTML = ludwigDetected
             ? `<p class="ludwig">🔥 This IS Ludwig 🔥</p>`
             : `<p class="not-ludwig">❌ This is NOT Ludwig ❌</p>`;
