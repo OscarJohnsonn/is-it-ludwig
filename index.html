@@ -16,7 +16,6 @@
   <meta name="twitter:title" content="Is it Ludwig?">
   <meta name="twitter:description" content="Find out if an image matches Ludwig.">
 
-
   <!-- Google Analytics -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-4FWWKTJ2GZ"></script>
   <script>
@@ -255,6 +254,7 @@
   </style>
 </head>
 <body>
+  <a href="red.html" class="old-version-button">Old Version</a>
   <h1>Ludwig Detector</h1>
   <p class="subtitle">Upload an image to check Ludwig probability</p>
   
@@ -283,7 +283,6 @@
     <button class="analysis-toggle" id="analysisToggle">Show Detailed Analysis</button>
     <div class="analysis-details" id="analysisDetails"></div>
   </div>
-  <a href="red.html" class="old-version-button">Old Version</a>
 
   <script>
     // Get elements
@@ -339,7 +338,7 @@
         console.error('Failed to load models:', error);
         loadingDiv.style.display = 'none';
         resultDiv.textContent = 'Error loading AI models. Please try again later.';
-        resultDiv.style.color = 'red';
+        resultDiv.style.color = 'var(--error-color)';
       }
     }
     
@@ -422,60 +421,253 @@
       };
     }
     
-    // Analyze the image for Ludwig-ness (baldness)
+    // Improved head region detection function
+    function getHeadRegion(segmentation) {
+      const mask = segmentation.data;
+      const width = segmentation.width;
+      const height = segmentation.height;
+      
+      let minY = height;
+      let maxY = 0;
+      let minX = width;
+      let maxX = 0;
+      
+      // Find the bounding box of the person
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          const idx = y * width + x;
+          if (mask[idx] === 1) {
+            minY = Math.min(minY, y);
+            maxY = Math.max(maxY, y);
+            minX = Math.min(minX, x);
+            maxX = Math.max(maxX, x);
+          }
+        }
+      }
+      
+      const personHeight = maxY - minY;
+      const personWidth = maxX - minX;
+      
+      // More accurate head detection - BodyPix can provide pose keypoints
+      if (segmentation.allPoses && segmentation.allPoses.length > 0) {
+        const pose = segmentation.allPoses[0];
+        const keypoints = pose.keypoints;
+        
+        // Try to find facial keypoints
+        const nose = keypoints.find(kp => kp.part === 'nose');
+        const leftEye = keypoints.find(kp => kp.part === 'leftEye');
+        const rightEye = keypoints.find(kp => kp.part === 'rightEye');
+        const leftEar = keypoints.find(kp => kp.part === 'leftEar');
+        const rightEar = keypoints.find(kp => kp.part === 'rightEar');
+        
+        // If we have facial keypoints, use them for better head detection
+        if (nose && (leftEye || rightEye || leftEar || rightEar)) {
+          let topY = height;
+          let bottomY = 0;
+          let leftX = width;
+          let rightX = 0;
+          
+          // Use available facial keypoints to determine head region
+          for (const kp of [nose, leftEye, rightEye, leftEar, rightEar]) {
+            if (kp && kp.position && kp.score > 0.5) {
+              topY = Math.min(topY, kp.position.y);
+              bottomY = Math.max(bottomY, kp.position.y);
+              leftX = Math.min(leftX, kp.position.x);
+              rightX = Math.max(rightX, kp.position.x);
+            }
+          }
+          
+          // Make sure we have valid facial keypoints
+          if (topY < height && bottomY > 0 && leftX < width && rightX > 0) {
+            // Add padding around the face
+            const faceHeight = bottomY - topY;
+            const faceWidth = rightX - leftX;
+            
+            // Add more padding to top to include baldness area
+            const paddedTopY = Math.max(0, topY - faceHeight * 1.2);
+            const paddedBottomY = Math.min(height, bottomY + faceHeight * 0.5);
+            const paddedLeftX = Math.max(0, leftX - faceWidth * 0.5);
+            const paddedRightX = Math.min(width, rightX + faceWidth * 0.5);
+            
+            return {
+              x: Math.floor(paddedLeftX),
+              y: Math.floor(paddedTopY),
+              width: Math.ceil(paddedRightX - paddedLeftX),
+              height: Math.ceil(paddedBottomY - paddedTopY)
+            };
+          }
+        }
+      }
+      
+      // Fallback if facial keypoints aren't available
+      const headHeight = personHeight * 0.3; // Increased from 0.25 to capture more of the head
+      const headWidth = Math.min(personWidth * 1.2, width - minX);
+      
+      // Center the head region horizontally
+      const centerX = minX + personWidth / 2;
+      const headX = Math.max(0, centerX - headWidth / 2);
+      
+      // Ensure we start from the very top of the detected person
+      const headY = Math.max(0, minY - 10);
+      
+      return {
+        x: Math.floor(headX),
+        y: Math.floor(headY),
+        width: Math.ceil(headWidth),
+        height: Math.ceil(headHeight)
+      };
+    }
+    
+    // Improved skin tone detection
+    function isDefinitelySkinTone(r, g, b) {
+      return (
+        (r > 200 && g > 160 && b > 130 && r > g && g > b) || // Light skin
+        (r > 160 && r < 220 && g > 120 && g < 190 && b > 90 && b < 160 && r > g && g > b) || // Medium skin
+        (r > 90 && r < 160 && g > 60 && g < 120 && b > 40 && b < 90 && r > g && g > b) || // Darker skin
+        (r > 95 && g > 40 && b > 20 && r > g && g > b && r - b > 15 && r - g < 70 && g - b < 70) // General skin
+      );
+    }
+    
+    function isProbablySkinTone(r, g, b) {
+      const isRedDominant = r > g && r > b;
+      const isInSkinRange = r > 50 && r < 255 && g > 35 && g < 230 && b > 15 && b < 220;
+      const skinToneDist1 = Math.sqrt(Math.pow(r - 200, 2) + Math.pow(g - 160, 2) + Math.pow(b - 130, 2));
+      const skinToneDist2 = Math.sqrt(Math.pow(r - 170, 2) + Math.pow(g - 120, 2) + Math.pow(b - 95, 2));
+      const skinToneDist3 = Math.sqrt(Math.pow(r - 120, 2) + Math.pow(g - 80, 2) + Math.pow(b - 60, 2));
+      const closestToSkinTone = Math.min(skinToneDist1, skinToneDist2, skinToneDist3) < 90;
+      
+      return isRedDominant && isInSkinRange && closestToSkinTone;
+    }
+    
+    // Improved hair color detection
+    function isDefinitelyHairColor(r, g, b) {
+      const isBlack = r < 60 && g < 60 && b < 60 && Math.max(r, g, b) - Math.min(r, g, b) < 20;
+      const isBrown = r >= 60 && r <= 140 && g >= 40 && g <= 100 && b >= 20 && b <= 80 && r >= g && g >= b;
+      const isBlonde = r > 170 && g > 140 && b > 60 && b < 130 && r >= g && g >= b;
+      const isRed = r > 80 && r < 200 && g > 40 && g < 100 && b > 20 && b < 80 && r > g + 30 && r > b + 30;
+      
+      return isBlack || isBrown || isBlonde || isRed;
+    }
+    
+    function isProbablyHairColor(r, g, b) {
+      const isDark = (r < 85 && g < 85 && b < 85) || (r < 100 && g < 80 && b < 80 && Math.max(r, g, b) - Math.min(r, g, b) < 25);
+      const isBlonde = r > 160 && g > 140 && b < 150 && r >= g && r > b + 30;
+      const isRedHair = r > 90 && r > g + 30 && r > b + 30;
+      const isBrown = r > 50 && r < 160 && g > 30 && g < 130 && b > 10 && b < 100 && r >= g && g >= b;
+      
+      return isDark || isBlonde || isRedHair || isBrown;
+    }
+    
+    // Analyze the head region for baldness indicators with improved accuracy
+    function analyzeHeadRegion(image, region) {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      
+      canvas.width = region.width;
+      canvas.height = region.height;
+      
+      ctx.drawImage(
+        image, 
+        region.x, region.y, region.width, region.height, 
+        0, 0, region.width, region.height
+      );
+      
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imageData.data;
+      
+      let skinPixels = 0;
+      let hairPixels = 0;
+      let totalPixels = 0;
+      
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+        const a = data[i + 3];
+        
+        if (a < 128) continue;
+        
+        totalPixels++;
+        
+        if (isDefinitelySkinTone(r, g, b)) {
+          skinPixels += 1.5;
+        } else if (isProbablySkinTone(r, g, b)) {
+          skinPixels++;
+        } else if (isDefinitelyHairColor(r, g, b)) {
+          hairPixels += 1.5;
+        } else if (isProbablyHairColor(r, g, b)) {
+          hairPixels++;
+        }
+      }
+      
+      const skinRatio = Math.min(skinPixels / (totalPixels || 1), 1.0);
+      const hairConfidence = Math.min(hairPixels / (totalPixels || 1), 1.0);
+      
+      return { 
+        skinRatio,
+        hairConfidence,
+        totalAnalyzedPixels: totalPixels
+      };
+    }
+    
+    // Completely redesigned analyzeLudwig function with all improvements
     async function analyzeLudwig() {
       try {
         if (!mobileNetModel || !bodyPixModel) {
           throw new Error('Models not loaded yet');
         }
         
-        // First, check if there's a person in the image using BodyPix
-        const segmentation = await bodyPixModel.segmentPerson(imagePreview);
+        const imgWidth = parseInt(imagePreview.getAttribute('data-natural-width')) || imagePreview.width || 300;
+        const imgHeight = parseInt(imagePreview.getAttribute('data-natural-height')) || imagePreview.height || 300;
         
-        if (!segmentation || segmentation.allPoses.length === 0) {
+        const segmentation = await bodyPixModel.segmentPerson(imagePreview, {
+          flipHorizontal: false,
+          internalResolution: 'medium',
+          segmentationThreshold: 0.7,
+          maxDetections: 1
+        });
+        
+        if (!segmentation || !segmentation.data || 
+            (segmentation.allPoses && segmentation.allPoses.length === 0)) {
           throw new Error('No person detected in the image');
         }
         
-        // Draw segmentation to visualize
-        segmentationCanvas.width = imagePreview.width;
-        segmentationCanvas.height = imagePreview.height;
+        segmentationCanvas.width = imgWidth;
+        segmentationCanvas.height = imgHeight;
         const ctx = segmentationCanvas.getContext('2d');
         
-        // First draw the original image
-        ctx.drawImage(imagePreview, 0, 0);
+        ctx.clearRect(0, 0, segmentationCanvas.width, segmentationCanvas.height);
+        ctx.drawImage(imagePreview, 0, 0, imgWidth, imgHeight);
         
-        // Then overlay the body segmentation
-        const coloredPartImage = bodyPix.toMask(segmentation);
-        const opacity = 0.3;
-        const maskBlurAmount = 3;
+        const coloredPartImage = bodyPix.toMask(segmentation, {
+          foreground: {r: 145, g: 70, b: 255, a: 125},
+          background: {r: 0, g: 0, b: 0, a: 0},
+          drawContour: true,
+          contourWidth: 2
+        });
+        
         bodyPix.drawMask(
           segmentationCanvas, 
           imagePreview, 
           coloredPartImage, 
-          opacity, 
-          maskBlurAmount,
-          false,  // flip horizontally
-          false,  // flip vertically
+          0.4,  
+          2,    
+          false, 
+          false  
         );
         
-        // Make segmentation visible
         segmentationCanvas.style.display = 'block';
         
-        // Get head region - approximate using top part of the person
         const headRegion = getHeadRegion(segmentation);
         
-        // Highlight head region
-        ctx.strokeStyle = 'var(--accent-primary)';
+        ctx.strokeStyle = '#9146FF';
         ctx.lineWidth = 3;
         ctx.strokeRect(headRegion.x, headRegion.y, headRegion.width, headRegion.height);
         
-        // Get skin vs hair color analysis in the head region
         const { skinRatio, hairConfidence } = analyzeHeadRegion(imagePreview, headRegion);
         
-        // Also get standard classification for additional features
         const classificationResults = await mobileNetModel.classify(imagePreview);
         
-        // Check for baldness keywords in classifications
         let baldKeywordFound = false;
         const keywordDetails = [];
         
@@ -491,28 +683,29 @@
           });
         });
         
-        // Calculate overall Ludwig probability based on multiple factors
         let ludwigProbability = 0;
         
-        // Factor 1: Skin ratio in head region (higher ratio = more likely bald/Ludwig)
-        ludwigProbability += skinRatio * 0.6; // 60% weight for skin detection
+        ludwigProbability += skinRatio * 0.65; 
         
-        // Factor 2: Hair confidence (lower = more likely bald/Ludwig)
-        ludwigProbability += (1 - hairConfidence) * 0.3; // 30% weight for lack of hair detection
-        
-        // Factor 3: Keyword detection (if any bald keywords found)
-        if (baldKeywordFound) {
-          ludwigProbability += 0.1; // 10% additional weight
+        if (hairConfidence < 0.2) {
+          ludwigProbability += (1 - hairConfidence) * 0.35;
+        } else {
+          ludwigProbability += (1 - hairConfidence) * 0.25;
         }
         
-        // Cap at 100%
+        if (baldKeywordFound) {
+          ludwigProbability += 0.1;
+        }
+        
+        if (skinRatio > 0.7) {
+          ludwigProbability += 0.05; 
+        }
+        
         ludwigProbability = Math.min(ludwigProbability, 1);
         
-        // Display result
         loadingDiv.style.display = 'none';
         resultContainer.style.display = 'block';
         
-        // Update Ludwig meter
         const ludwigPercentValue = Math.round(ludwigProbability * 100);
         ludwigMeterFill.style.width = `${ludwigPercentValue}%`;
         ludwigPercentage.textContent = `${ludwigPercentValue}% Ludwig`;
@@ -529,7 +722,6 @@
           resultDiv.textContent = `Low Ludwig probability (${ludwigPercentValue}% confidence)`;
         }
         
-        // Build detailed analysis report
         let details = `=== LUDWIG ANALYSIS REPORT ===\n\n`;
         details += `Total Ludwig probability: ${ludwigPercentValue}%\n\n`;
         details += `Baldness factors:\n`;
@@ -548,9 +740,19 @@
         });
         
         details += '\nLudwig Meter Formula:\n';
-        details += `- 60% from skin-to-hair ratio: ${(skinRatio * 60).toFixed(1)}%\n`;
-        details += `- 30% from inverse hair confidence: ${((1 - hairConfidence) * 30).toFixed(1)}%\n`;
+        details += `- 65% from skin-to-hair ratio: ${(skinRatio * 65).toFixed(1)}%\n`;
+        
+        if (hairConfidence < 0.2) {
+          details += `- 35% from inverse hair confidence: ${((1 - hairConfidence) * 35).toFixed(1)}%\n`;
+        } else {
+          details += `- 25% from inverse hair confidence: ${((1 - hairConfidence) * 25).toFixed(1)}%\n`;
+        }
+        
         details += `- 10% from baldness keyword detection: ${(baldKeywordFound ? 10 : 0)}%\n`;
+        
+        if (skinRatio > 0.7) {
+          details += `- 5% bonus for high skin ratio: 5.0%\n`;
+        }
         
         details += '\nVerdict: ';
         details += isLudwig ? 'LUDWIG DETECTED ✅' : 'NOT LUDWIG ❌';
@@ -566,143 +768,6 @@
         resultDiv.style.color = 'var(--error-color)';
         console.error('Error during image analysis:', error);
       }
-    }
-    
-    // Helper function to get head region from segmentation
-    function getHeadRegion(segmentation) {
-      // Find the top points of the segmentation mask
-      const mask = segmentation.data;
-      const width = segmentation.width;
-      const height = segmentation.height;
-      
-      let minY = height;
-      let maxY = 0;
-      let minX = width;
-      let maxX = 0;
-      
-      // Find the bounding box of the person
-      for (let y = 0; y < height; y++) {
-        for (let x = 0; x < width; x++) {
-          const idx = y * width + x;
-          if (mask[idx] === 1) { // 1 means person
-            minY = Math.min(minY, y);
-            maxY = Math.max(maxY, y);
-            minX = Math.min(minX, x);
-            maxX = Math.max(maxX, x);
-          }
-        }
-      }
-      
-      // Approximate head as top 1/5th of the person
-      const personHeight = maxY - minY;
-      const headHeight = personHeight * 0.25; // Adjust as needed
-      
-      return {
-        x: minX,
-        y: minY,
-        width: maxX - minX,
-        height: headHeight
-      };
-    }
-    
-    // Analyze the head region for baldness indicators
-    function analyzeHeadRegion(image, region) {
-      // Create a temporary canvas to analyze the head region
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      
-      canvas.width = region.width;
-      canvas.height = region.height;
-      
-      // Draw just the head region to the canvas
-      ctx.drawImage(
-        image, 
-        region.x, region.y, region.width, region.height, 
-        0, 0, region.width, region.height
-      );
-      
-      // Get image data for pixel analysis
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const data = imageData.data;
-      
-      // Count skin tones vs. hair tones
-      let skinPixels = 0;
-      let hairPixels = 0;
-      let totalPixels = 0;
-      
-      for (let i = 0; i < data.length; i += 4) {
-        const r = data[i];
-        const g = data[i + 1];
-        const b = data[i + 2];
-        const a = data[i + 3];
-        
-        // Skip transparent pixels
-        if (a < 128) continue;
-        
-        totalPixels++;
-        
-        // Simple color analysis - can be improved with better algorithms
-        // Check if it's likely a skin tone (this is simplified)
-        if (isSkinTone(r, g, b)) {
-          skinPixels++;
-        } 
-        // Check if it's likely a hair color (dark tones, strong contrast)
-        else if (isHairColor(r, g, b)) {
-          hairPixels++;
-        }
-      }
-      
-      // Calculate ratio of skin to total analyzed pixels
-      const skinRatio = skinPixels / (totalPixels || 1);
-      
-      // Calculate hair confidence score
-      const hairConfidence = hairPixels / (totalPixels || 1);
-      
-      return { 
-        skinRatio,
-        hairConfidence
-      };
-    }
-    
-    // Simple skin tone detection - can be improved
-    function isSkinTone(r, g, b) {
-      // Basic skin tone detection - checks for typical skin tone range
-      // This is simplified and can be improved
-      
-      // Rule 1: Red is most dominant in skin tones
-      const isRedDominant = r > g && r > b;
-      
-      // Rule 2: Typical skin tone ranges (very simplified)
-      const isInSkinRange = 
-        r > 60 && r < 250 && 
-        g > 40 && g < 220 && 
-        b > 20 && b < 210;
-      
-      // Rule 3: Green is the second highest component in most skin tones
-      const isGreenSecond = g > b;
-      
-      // Rule 4: Red and green shouldn't be too far apart in skin
-      const redGreenDiff = Math.abs(r - g);
-      const notTooDifferent = redGreenDiff < 70;
-      
-      return isRedDominant && isInSkinRange && isGreenSecond && notTooDifferent;
-    }
-    
-    // Simple hair color detection - can be improved
-    function isHairColor(r, g, b) {
-      // Check for dark colors (for dark hair)
-      const isDark = r < 80 && g < 80 && b < 80;
-      
-      // Check for blonde/light hair
-      const isBlonde = r > 180 && g > 150 && b < 150 && r > b + 50;
-      
-      // Check for red hair
-      const isRedHair = r > 100 && r > g + 40 && r > b + 40;
-      
-      // Check for brown hair
-      const isBrown = r > 60 && r < 150 && g > 40 && g < 120 && b > 10 && b < 100 && r > b;
-      
-      return isDark || isBlonde || isRedHair || isBrown;
     }
     
     // Initialize the app
